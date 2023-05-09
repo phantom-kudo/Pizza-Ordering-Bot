@@ -3,6 +3,7 @@ const {
   ActivityHandler,
   CardFactory,
   MessageFactory,
+  AttachmentLayoutTypes,
 } = require("botbuilder");
 
 const PIZZA_BOT = "pizzaBotProperty";
@@ -16,8 +17,6 @@ class PizzaBot extends ActivityHandler {
       );
     if (!userState)
       throw new Error("[DialogBot]: Missing parameter. userState is required");
-    if (!dialog)
-      throw new Error("[DialogBot]: Missing parameter. dialog is required");
 
     this.pizzaBotProperty = userState.createProperty(PIZZA_BOT);
     this.conversationState = conversationState;
@@ -36,13 +35,18 @@ class PizzaBot extends ActivityHandler {
           await this.giveOption(context);
           break;
         case "veg":
+          await context.sendActivity("Please choose your veg pizza");
           await this.sendVegMenuCard(context);
           break;
         case "non-veg":
+          await context.sendActivity("Please choose your non-veg pizza");
           await this.sendNonVegMenuCard(context);
+          break;
         case "buy":
-          await context.sendActivity(`Thanks for placing order!`);
-
+          await context.sendActivity(
+            `Thanks for placing order! Your pizza will arrive to you soon`
+          );
+          break;
         default:
           await context.sendActivity(`Please type 'order' to place an order.`);
       }
@@ -54,17 +58,38 @@ class PizzaBot extends ActivityHandler {
           context.activity.membersAdded[idx].id !==
           context.activity.recipient.id
         ) {
-          await context.sendActivity(`Welcome to the Pizza Ordering Bot.`);
+          await this.greetings(context);
         }
       }
       await next();
     });
   }
 
+  async greetings(context) {
+    const card = CardFactory.heroCard(
+      "Welcome to the Pizza-Ordering-Bot",
+      "Please press order for placing an order",
+      CardFactory.images([
+        "https://static.vecteezy.com/system/resources/previews/000/294/962/original/a-pizza-shop-on-white-background-vector.jpg",
+      ]),
+      [
+        {
+          type: ActionTypes.ImBack,
+          title: "order",
+          value: "order",
+        },
+      ]
+    );
+    const message = MessageFactory.attachment(card);
+    await context.sendActivity(message);
+  }
+
   async giveOption(context) {
     const card = CardFactory.heroCard(
       "Please choose your type of pizza",
-      ["https://aka.ms/bf-welcome-card-image"],
+      [
+        "https://nomoneynotime.com.au/uploads/recipes/shutterstock_2042520416-1.jpg",
+      ],
       [
         {
           type: ActionTypes.ImBack,
@@ -82,67 +107,45 @@ class PizzaBot extends ActivityHandler {
     await context.sendActivity(message);
   }
 
-  async sendNonVegMenuCard(context) {
-    const card = CardFactory.heroCard(
-      "Please choose your favourite pizza from veg item menu",
-      ["https://aka.ms/bf-welcome-card-image"],
-      [
-        {
-          type: ActionTypes.ImBack,
-          image:
-            "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fpizza&psig=AOvVaw2oOVSny8N-ISBgrWJ_PC6m&ust=1683375691966000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCPjM66KV3v4CFQAAAAAdAAAAABAE",
-          title: "Chicken Peri-Peri Pizza",
-          value: "buy",
-        },
-        {
-          type: ActionTypes.ImBack,
-          image:
-            "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fpizza&psig=AOvVaw2oOVSny8N-ISBgrWJ_PC6m&ust=1683375691966000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCPjM66KV3v4CFQAAAAAdAAAAABAE",
-          title: "Chicken Farmhouse Pizza",
-          value: "buy",
-        },
-        {
-          type: ActionTypes.ImBack,
-          image:
-            "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fpizza&psig=AOvVaw2oOVSny8N-ISBgrWJ_PC6m&ust=1683375691966000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCPjM66KV3v4CFQAAAAAdAAAAABAE",
-          title: "Chicken Barbeque Pizza",
-          value: "buy",
-        },
-        {
-          type: ActionTypes.ImBack,
-          image:
-            "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fpizza&psig=AOvVaw2oOVSny8N-ISBgrWJ_PC6m&ust=1683375691966000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCPjM66KV3v4CFQAAAAAdAAAAABAE",
-          title: "Chicken Tikka Pizza",
-          value: "buy",
-        },
-      ]
-    );
-    const message = MessageFactory.attachment(card);
-    await context.sendActivity(message);
-  }
   async sendVegMenuCard(context) {
-    const card = CardFactory.heroCard(
-      "Please choose your favourite pizza from veg item menu",
-      ["https://aka.ms/bf-welcome-card-image"],
-      [
+    await context.sendActivity({
+      attachments: [
+        this.createHeroCard("Paneer Pizza"),
+        this.createHeroCard("Corn Pizza"),
+        this.createHeroCard("Onion Pizza"),
+        this.createHeroCard("Tomato Pizza"),
+      ],
+      attachmentLayout: AttachmentLayoutTypes.Carousel,
+    });
+  }
+
+  async sendNonVegMenuCard(context) {
+    await context.sendActivity({
+      attachments: [
+        this.createHeroCard("Chicken Tikka Pizza"),
+        this.createHeroCard("Chicken Peri-Peri Pizza"),
+        this.createHeroCard("Chicken Farmhouse Pizza"),
+        this.createHeroCard("Chicken Overloaded Pizza"),
+      ],
+      attachmentLayout: AttachmentLayoutTypes.Carousel,
+    });
+  }
+
+  createHeroCard(pizzaName) {
+    return CardFactory.heroCard(
+      `${pizzaName}`,
+      "4.2 ★★★☆ (93) · $$",
+      CardFactory.images([
+        "https://img.freepik.com/free-photo/pizza-pizza-filled-with-tomatoes-salami-olives_140725-1200.jpg?size=626&ext=jpg",
+      ]),
+      CardFactory.actions([
         {
           type: ActionTypes.ImBack,
-          image:
-            "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fpizza&psig=AOvVaw2oOVSny8N-ISBgrWJ_PC6m&ust=1683375691966000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCPjM66KV3v4CFQAAAAAdAAAAABAE",
-          title: "Paneer Pizza",
+          title: "Buy",
           value: "buy",
         },
-        {
-          type: ActionTypes.ImBack,
-          contentType:
-            "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fpizza&psig=AOvVaw2oOVSny8N-ISBgrWJ_PC6m&ust=1683375691966000&source=images&cd=vfe&ved=0CBEQjRxqFwoTCPjM66KV3v4CFQAAAAAdAAAAABAE",
-          title: "Corn Pizza",
-          value: "buy",
-        },
-      ]
+      ])
     );
-    const message = MessageFactory.attachment(card);
-    await context.sendActivity(message);
   }
 
   async run(context) {
