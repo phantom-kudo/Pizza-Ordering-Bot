@@ -5,25 +5,38 @@ const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
 
 const {
-  ConfigurationBotFrameworkAuthentication,
+  ConfigurationServiceClientCredentialFactory,
   CloudAdapter,
   MemoryStorage,
   ConversationState,
   UserState,
+  createBotFrameworkAuthenticationFromConfiguration,
 } = require("botbuilder");
 
-const { PizzaBot } = require("./bot/pizzaBot");
+const { DialogBot } = require("./bot/dialogBot");
+const {
+  PizzaBookingRecognizer,
+} = require("./recognizer/pizzaBookingRecognizer");
+const { DialogAndWelcomeBot } = require("./bot/dialogAndWelcomeBot");
+const { MainDialog } = require("./dialogs/mainDialog");
 
-const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication(
-  process.env
-);
+const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
+  MicrosoftAppId: process.env.MicrosoftAppId,
+  MicrosoftAppPassword: process.env.MicrosoftAppPassword,
+  MicrosoftAppType: process.env.MicrosoftAppType,
+  MicrosoftAppTenantId: process.env.MicrosoftAppTenantId,
+});
+
+const botFrameworkAuthentication =
+  new createBotFrameworkAuthenticationFromConfiguration(
+    null,
+    credentialsFactory
+  );
 const adapter = new CloudAdapter(botFrameworkAuthentication);
 
 const memoryStorage = new MemoryStorage();
 const conversationState = new ConversationState(memoryStorage);
 const userState = new UserState(memoryStorage);
-
-const bot = new PizzaBot(conversationState, userState);
 
 adapter.onTurnError = async (context, error) => {
   console.error(`\n [onTurnError] unhandled error: ${error}`);
@@ -39,6 +52,21 @@ adapter.onTurnError = async (context, error) => {
   );
   await conversationState.delete(context);
 };
+
+const { CluAPIKey, CluAPIHostName, CluProjectName, CluDeploymentName } =
+  process.env;
+const cluConfig = {
+  endpointKey: CluAPIKey,
+  endpoint: `https://${CluAPIHostName}`,
+  projectName: CluProjectName,
+  deploymentName: CluDeploymentName,
+};
+
+const cluRecognizer = new PizzaBookingRecognizer(cluConfig);
+
+const dialog = new MainDialog(cluRecognizer);
+const bot = new DialogAndWelcomeBot(conversationState, userState, dialog);
+// const bot = new DialogBot(conversationState, userState, dialog);
 
 server.listen(PORT, () => {
   console.log(`${server.name} listening to ${server.url}`);
